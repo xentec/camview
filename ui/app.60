@@ -1,0 +1,109 @@
+export struct DateTime := {
+	date: string,
+	time: string,
+	seconds: int,
+}
+
+export DateTimePanel := HorizontalLayout {
+	property <DateTime> data;
+
+	alignment: space-between;
+	spacing: 10px;
+	Rectangle {
+		background: #000000AA;
+		HorizontalLayout {
+			padding-left: 10px;
+			padding-right: 10px;
+			Text {
+				text: data.date;
+				color: #FFF;
+				font-size: 30pt;
+				font-weight: 700;
+			}
+		}
+	}
+
+	Rectangle {
+		background: #000000AA;
+		HorizontalLayout {
+			alignment: end;
+			spacing: 5px;
+			padding-left: 10px;
+			padding-right: 10px;
+			time := Text {
+				text: data.time;
+				color: #FFF;
+				font-size: 30pt;
+				font-weight: 700;
+			}
+			Rectangle {
+				width: 5px;
+				background: #555;
+				height: 31px;
+				y: 13px;
+				Rectangle {
+					height: parent.height * data.seconds / 60;
+					y: parent.height - height;
+					background: #bbb;
+				}
+			}
+		}
+	}
+}
+
+export StatusPanel := Rectangle {
+	property <string> text;
+
+	background: #000000AA;
+	border-color: #fa5;
+	border-width: 1px;
+	border-radius: 2px;
+	clip: true;
+	VerticalLayout {
+		padding: 1px;
+		alignment: start;
+		if text != "" : Text {
+			text: root.text;
+			font-size: 16pt;
+			color: #fa5;
+			wrap: word-wrap;
+			vertical-alignment: center;
+			horizontal-alignment: center;
+		}
+	}
+}
+
+export App := Window {
+	property <DateTime> datetime: {date: "Present day...", time: "Present time...  AHAHAHAHA", seconds: 50};
+	property <string> status;
+	property <image> bg-image;
+
+	title: "Cam View";
+	background: #222;
+	default-font-family: "Noto Sans";
+	default-font-size: 26pt;
+	preferred-height: 1280px;
+	preferred-width: 720px;
+	
+	Flickable {
+		Image {
+			source: root.bg-image;
+			image-fit: cover;
+			height: 100%;
+			width: 100%;
+		}
+		Text {
+			text: "Loading...";
+			font-size: 102pt;
+			color: #FFFFFF33;
+			x: (root.width - width) * 50%;
+			y: (root.height - height) * 50%;
+			z: -1;
+		}
+		VerticalLayout {
+			alignment: end;
+			StatusPanel { text: root.status; }
+			DateTimePanel { data: datetime; }
+		}
+	}
+}
