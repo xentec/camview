@@ -1,82 +1,13 @@
-export struct DateTime := {
-	date: string,
-	time: string,
-	seconds: int,
-}
-
-export DateTimePanel := HorizontalLayout {
-	property <DateTime> data;
-
-	alignment: space-between;
-	spacing: 10px;
-	Rectangle {
-		background: #000000AA;
-		HorizontalLayout {
-			padding-left: 10px;
-			padding-right: 10px;
-			Text {
-				text: data.date;
-				color: #FFF;
-				font-size: 30pt;
-				font-weight: 700;
-			}
-		}
-	}
-
-	Rectangle {
-		background: #000000AA;
-		HorizontalLayout {
-			alignment: end;
-			spacing: 5px;
-			padding-left: 10px;
-			padding-right: 10px;
-			time := Text {
-				text: data.time;
-				color: #FFF;
-				font-size: 30pt;
-				font-weight: 700;
-			}
-			Rectangle {
-				width: 5px;
-				background: #555;
-				height: 31px;
-				y: 13px;
-				Rectangle {
-					height: parent.height * data.seconds / 60;
-					y: parent.height - height;
-					background: #bbb;
-				}
-			}
-		}
-	}
-}
-
-export StatusPanel := Rectangle {
-	property <string> text;
-
-	background: #000000AA;
-	border-color: #fa5;
-	border-width: 1px;
-	border-radius: 2px;
-	clip: true;
-	VerticalLayout {
-		padding: 1px;
-		alignment: start;
-		if text != "" : Text {
-			text: root.text;
-			font-size: 16pt;
-			color: #fa5;
-			wrap: word-wrap;
-			vertical-alignment: center;
-			horizontal-alignment: center;
-		}
-	}
-}
-
 export App := Window {
-	property <DateTime> datetime: {date: "Present day...", time: "Present time...  AHAHAHAHA", seconds: 50};
-	property <string> status;
+	property <string> date: "Present day...";
+	property <string> time: "Present time...  AHAHAHAHA";
+	property <int> seconds: 50;
+
+	property <string> status: "Initializing...";
+	property <bool> status-error: false;
+
 	property <image> bg-image;
+	property <string> bg-time: "10:00";
 
 	title: "Cam View";
 	background: #222;
@@ -102,8 +33,88 @@ export App := Window {
 		}
 		VerticalLayout {
 			alignment: end;
-			StatusPanel { text: root.status; }
-			DateTimePanel { data: datetime; }
+
+			HorizontalLayout {
+				alignment: space-between;
+				spacing: 10px;
+
+				// Status panel
+				Rectangle {
+					background: #000000AA;
+					HorizontalLayout {
+						padding-left: 5px;
+						padding-right: 5px;
+						if root.status != "" : Text {
+							text: root.status;
+							color: root.status-error ? #FA5 : #AAA;
+							font-size: 16pt;
+							font-weight: 500;
+						}
+					}
+				}
+
+				// Image timestamp
+				Rectangle {
+					background: #000000AA;
+					HorizontalLayout {
+						padding-left: 5px;
+						padding-right: 5px;
+						if root.bg-time != "" : Text {
+							text: root.bg-time;
+							color: #AAA;
+							font-size: 16pt;
+							font-weight: 500;
+						}
+					}
+				}
+			}
+
+
+			// Date and Time
+			HorizontalLayout {
+				alignment: space-between;
+				spacing: 10px;
+				Rectangle {
+					background: #000000AA;
+					HorizontalLayout {
+						padding-left: 10px;
+						padding-right: 10px;
+						Text {
+							text: root.date;
+							color: #FFF;
+							font-size: 30pt;
+							font-weight: 700;
+						}
+					}
+				}
+
+				Rectangle {
+					background: #000000AA;
+					HorizontalLayout {
+						alignment: end;
+						spacing: 5px;
+						padding-left: 10px;
+						padding-right: 10px;
+						anchor := Text {
+							text: root.time;
+							color: #FFF;
+							font-size: 30pt;
+							font-weight: 700;
+						}
+						Rectangle {
+							width: 5px;
+							background: #555;
+							height: anchor.font-size * 73%;
+							y: parent.height - height * 140%;
+							Rectangle {
+								height: parent.height * root.seconds / 60;
+								y: parent.height - height;
+								background: #bbb;
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }

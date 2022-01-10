@@ -53,6 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
 			{
 				log::error!("{:#}", err);
 				ui.upgrade_in_event_loop(move |ui| {
+					ui.set_status_error(true);
 					ui.set_status(error_showable(err));
 				});
 			}
@@ -135,6 +136,7 @@ async fn io_run(ui: Weak<ui::App>, opt: Opt) -> Result<()>
 					Err(err) => {
 						log::error!("{:#}", err);
 						ui.clone().upgrade_in_event_loop(move |ui| {
+							ui.set_status_error(true);
 							ui.set_status(error_showable(err));
 						});
 						time::sleep(time::Duration::from_secs(30)).await;
@@ -148,7 +150,7 @@ async fn io_run(ui: Weak<ui::App>, opt: Opt) -> Result<()>
 				}
 
 				url_img_prev = url_img.clone();
-				let res = client.get(url_img)
+				let res = client.get(url_img.clone())
 					.send()
 					.and_then(|resp| async { resp.error_for_status() })
 					.and_then(|resp| resp.bytes())
@@ -161,6 +163,7 @@ async fn io_run(ui: Weak<ui::App>, opt: Opt) -> Result<()>
 					Err(err) => {
 						log::error!("{:#}", err);
 						ui.clone().upgrade_in_event_loop(move |ui| {
+							ui.set_status_error(true);
 							ui.set_status(error_showable(err));
 						});
 						time::sleep(time::Duration::from_secs(30)).await;
@@ -168,11 +171,17 @@ async fn io_run(ui: Weak<ui::App>, opt: Opt) -> Result<()>
 					},					
 				};
 
+				let image_time =  url_img.rsplit_once('/')
+					.and_then(|(_, file_name)| file_name.get(0..2).zip(file_name.get(2..4)))
+					.map(|(h, m)| format!("{}:{}", h, m))
+					.unwrap_or_default();
+
 				ui.clone().upgrade_in_event_loop(move |ui| {
 					let pixels = sixtyfps::SharedPixelBuffer::clone_from_slice(image.as_raw(), image.width() as _, image.height() as _);
 					ui.set_status(Default::default());
+					ui.set_status_error(false);
 					ui.set_bg_image(sixtyfps::Image::from_rgb8(pixels));
-					
+					ui.set_bg_time(image_time.into());
 				});
 				time::sleep(time::Duration::from_secs(120)).await;
 			}
@@ -182,23 +191,39 @@ async fn io_run(ui: Weak<ui::App>, opt: Opt) -> Result<()>
 	let time_task = spawn({
 		let ui = ui.clone();
 		async move {
+			let mut old_date = chrono::Local::now().date() - chrono::Duration::days(1);
+			let mut old_time = chrono::Local::now().time() - chrono::Duration::minutes(1) ;
 			loop {
 				let now = chrono::Local::now();
-				let new_time = now.time().format("%H:%M").to_string();
-				let new_date = {
+				let new_time = if now.time().minute() != old_time.minute() {
+					let time = now.time();
+					let time_str = time.format("%H:%M").to_string();
+					old_time = time;
+					Some(time_str)
+				} else {
+					None
+				};
+				let new_date = if now.date() != old_date {
 					let date = now.date();
-					if date.month() == 1 {
+					let date_str = if date.month() == 1 {
 						date.format_localized("%A, %e. %B %Y", locale())
 					} else {
 						date.format_localized("%A, %e. %B", locale())
-					}.to_string()
-				}; 
+					}.to_string();
+					old_date = date;
+					Some(date_str)
+				} else {
+					None
+				};
+
 				ui.clone().upgrade_in_event_loop(move |ui| {
-					ui.set_datetime(ui::DateTime {
-						date: new_date.into(),
-						time: new_time.into(),
-						seconds: now.second() as i32,
-					});
+					if let Some(date) = new_date {
+						ui.set_date(date.into());
+					}
+					if let Some(time) = new_time {
+						ui.set_time(time.into());
+					}
+					ui.set_seconds(now.second() as i32);
 				});
 				time::sleep(time::Duration::from_secs(1)).await;
 			};
@@ -223,9 +248,12 @@ fn locale() -> chrono::Locale {
 
 	unsafe {
 		LOCALE_INIT.call_once(|| {
-			LOCALE = sys_locale::get_locale()
+			match sys_locale::get_locale()
 				.and_then(|locstr| chrono::Locale::try_from(locstr.as_str()).ok())
-				.expect("failed to get system locale");
+			{
+				Some(loc) => LOCALE = loc,
+				None => log::error!("failed to get system locale"),
+			}
 		});
 		LOCALE
 	}
