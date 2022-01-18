@@ -48,32 +48,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
 		.name("io-runtime".into())
 		.spawn({
 			let ui = ui.as_weak();
-			move ||
-			if let Err(err) = io_runtime_run(ui.clone(), opt).context("fatal error")
-			{
-				log::error!("{:#}", err);
-				ui.upgrade_in_event_loop(move |ui| {
-					ui.set_status_error(true);
-					ui.set_status(error_showable(err));
-				});
-			}
+			move || io_runtime_run(ui.clone(), opt).expect("fatal error")
 		})?;
 
 	let _cleanup_task_handle = thread::Builder::new()
 		.name("cleanup".into())
 		.spawn({
 			let ui = ui.as_weak();
-			move ||
-				if let Err(err) = io_task_handle.join()
-					.map_err(|_err| anyhow::anyhow!("PANIC!"))
+			move || {
+				if let Err(panic) = io_task_handle.join()
 				{
-					log::error!("{:#}", err);
+					let err_str = panic.downcast::<String>()
+						.map(|str_box| *str_box)
+						.or_else(|panic| panic.downcast::<&str>().map(|str_box| str_box.to_string()))
+						.unwrap_or_else(|panic| format!("unknown panic type: {:?}", panic));
+
+					//let err_str = format!("PANIC! {}", err_str);
+					log::error!("PANIC! {}", err_str);
 					thread::sleep(time::Duration::from_secs(1));
 					ui.upgrade_in_event_loop(move |ui| {
-						let err_str = error_showable(err);
-						ui.set_status(err_str);
+						ui.set_bg_text("PANIC!".into());
+						ui.set_status_error(true);
+						ui.set_status(err_str.into());
 					});
+					thread::sleep(time::Duration::from_secs(10));
 				}
+				sixtyfps::invoke_from_event_loop(move || sixtyfps::quit_event_loop());
+			}
 		});
 
 	ui.run();

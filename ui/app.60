@@ -8,6 +8,7 @@ export App := Window {
 
 	property <image> bg-image;
 	property <string> bg-time: "10:00";
+	property <string> bg-text: "Loading...";
 
 	title: "Cam View";
 	background: #222;
@@ -24,7 +25,7 @@ export App := Window {
 			width: 100%;
 		}
 		Text {
-			text: "Loading...";
+			text: root.bg-text;
 			font-size: 102pt;
 			color: #FFFFFF33;
 			x: (root.width - width) * 50%;
