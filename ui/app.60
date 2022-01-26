@@ -32,63 +32,77 @@ export App := Window {
 			y: (root.height - height) * 50%;
 			z: -1;
 		}
-		VerticalLayout {
-			alignment: end;
 
-			HorizontalLayout {
-				alignment: space-between;
-				spacing: 10px;
+
+		HorizontalLayout {
+			alignment: space-between;
+			spacing: 10px;
+
+			// Left side
+			VerticalLayout {
+				alignment: end;
 
 				// Status panel
-				Rectangle {
-					background: #000000AA;
-					HorizontalLayout {
-						padding-left: 5px;
-						padding-right: 5px;
-						if root.status != "" : Text {
-							text: root.status;
-							color: root.status-error ? #FA5 : #AAA;
-							font-size: 16pt;
-							font-weight: 500;
+				HorizontalLayout {
+					alignment: start;
+					Rectangle {
+						background: #000000AA;
+						HorizontalLayout {
+							padding-left: 10px;
+							padding-right: 5px;
+							max-width: root.width * 50%;
+
+							if root.status != "" : Text {
+								text: root.status;
+								color: root.status-error ? #FA5 : #AAA;
+								font-size: 12pt;
+								font-weight: 500;
+							}
 						}
 					}
 				}
 
-				// Image timestamp
-				Rectangle {
-					background: #000000AA;
-					HorizontalLayout {
-						padding-left: 5px;
-						padding-right: 5px;
-						if root.bg-time != "" : Text {
-							text: root.bg-time;
-							color: #AAA;
-							font-size: 16pt;
-							font-weight: 500;
+				// Date
+				HorizontalLayout {
+					alignment: start;
+					Rectangle {
+						background: #000000AA;
+						HorizontalLayout {
+							padding-left: 10px;
+							padding-right: 10px;
+							Text {
+								text: root.date;
+								color: #FFF;
+								font-size: 30pt;
+								font-weight: 700;
+							}
 						}
 					}
 				}
 			}
 
+			// Right side
+			VerticalLayout {
+				alignment: end;
 
-			// Date and Time
-			HorizontalLayout {
-				alignment: space-between;
-				spacing: 10px;
-				Rectangle {
-					background: #000000AA;
-					HorizontalLayout {
-						padding-left: 10px;
-						padding-right: 10px;
-						Text {
-							text: root.date;
-							color: #FFF;
-							font-size: 30pt;
-							font-weight: 700;
+				// Image timestamp
+				HorizontalLayout {
+					alignment: end;
+					Rectangle {
+						background: #000000AA;
+						HorizontalLayout {
+							padding-left: 5px;
+							padding-right: 5px;
+							if root.bg-time != "" : Text {
+								text: root.bg-time;
+								color: #AAA;
+								font-size: 16pt;
+								font-weight: 500;
+							}
 						}
 					}
 				}
-
+				// Time
 				Rectangle {
 					background: #000000AA;
 					HorizontalLayout {
