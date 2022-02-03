@@ -7,6 +7,11 @@ license = "GPL-2.0-only"
 edition = "2021"
 build = "build.rs"
 
+[features]
+default = ["x11"]
+x11 = ["sixtyfps/x11"]
+wayland = ["sixtyfps/wayland"]
+
 [build-dependencies]
 sixtyfps-build = "^0.1.5"
 
@@ -16,7 +21,7 @@ anyhow = "^1"
 
 # Interface
 clap = { version = "^3", default-features = false, features = ["std", "derive"] }
-sixtyfps = { version = "^0.1.5", default-features = false, features = ["backend-qt"] }
+sixtyfps = { version = "^0.1.5", default-features = false, features = ["backend-gl"] }
 
 # Data
 image = { version = "^0.23", default-features = false, features = ["jpeg_rayon"] }
