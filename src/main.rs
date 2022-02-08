@@ -158,7 +158,7 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 								if desc.is_empty() {
 									ui.set_status(desc.into());
 								} else {
-									ui.set_status(format!("{desc}...").into());
+									ui.set_status(format!("Updating: {desc}...").into());
 								}
 							});
 							delay
@@ -381,7 +381,7 @@ async fn update_image(
 }
 
 fn error_showable(err: anyhow::Error) -> sixtyfps::SharedString {
-	format!("{}:{}", err, err.root_cause()).into()
+	format!("{}: {}", err, err.root_cause()).into()
 }
 
 fn locale() -> chrono::Locale {
