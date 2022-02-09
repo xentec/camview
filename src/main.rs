@@ -1,12 +1,12 @@
 use std::{
 	sync::Once,
-	thread, time, sync::Arc,
+	thread, time::{self, Duration}, sync::Arc,
 };
 use sixtyfps::{self, ComponentHandle, Weak};
 
 use clap::Parser;
 use serde::{Deserialize};
-use chrono::prelude::*;
+use chrono::{prelude::*, Duration};
 use image::{self, DynamicImage};
 
 use tokio;
@@ -15,7 +15,7 @@ use futures_util::TryFutureExt;
 
 
 use tracing as log;
-use tracing_subscriber::{self, field::debug};
+use tracing_subscriber;
 
 use anyhow::{Result, Context};
 use sys_locale;
@@ -168,7 +168,8 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 						},
 					},
 					Err(err) => {
-						err_tx.send(err).await;
+						err_tx.send(err).await
+							.expect("failed to send error");
 						20
 					},
 				};
@@ -353,12 +354,17 @@ async fn update_image(
 	struct List {
 		hugeimg: String,
 	}
-	let url_img = client.get(url_list.clone())
+	let list = client.get(url_list.clone())
 		.send()
 		.and_then(http::Response::json::<List>)
 		.await
-		.map(|list| format!("{}/{}", &url_base, list.hugeimg))
 		.context("failed to fetch image list")?;
+
+	const IMG_PATH_TS_FMT: &str = "%Y/%m/%d/%H%M_hu.jpg";
+	let img_ts = Local.datetime_from_str(&list.hugeimg, IMG_PATH_TS_FMT)
+		.context("failed to parse date time")?;
+
+	let url_img = format!("{}/{}", &url_base, list.hugeimg);
 
 	log::debug!("loading image from {} ...", &url_img);
 	let image = client.get(url_img.clone())
@@ -372,12 +378,13 @@ async fn update_image(
 				.context("failed to parse JPEG image")
 		)?;
 
-	let timestamp = url_img.rsplit_once('/')
-		.and_then(|(_, file_name)| file_name.get(0..2).zip(file_name.get(2..4)))
-		.map(|(h, m)| format!("{}:{}", h, m))
-		.unwrap_or_default();
+	let img_ts_str = if Local::today() != img_ts.date() {
+		img_ts.format("%Y-%m-%d %H:%M")
+	} else {
+		img_ts.format("%H:%M")
+	};
 
-	Ok(ImageData{ image, timestamp })
+	Ok(ImageData{ image, timestamp: img_ts_str.to_string() })
 }
 
 fn error_showable(err: anyhow::Error) -> sixtyfps::SharedString {

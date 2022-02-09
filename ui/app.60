@@ -9,6 +9,7 @@ export App := Window {
 	property <image> bg-image;
 	property <string> bg-time: "10:00";
 	property <string> bg-text: "Loading...";
+	property <[string]> status-log: ["Initializing..."];
 
 	title: "Cam View";
 	background: #222;
@@ -103,28 +104,31 @@ export App := Window {
 					}
 				}
 				// Time
-				Rectangle {
-					background: #000000AA;
-					HorizontalLayout {
-						alignment: end;
-						spacing: 5px;
-						padding-left: 10px;
-						padding-right: 10px;
-						anchor := Text {
-							text: root.time;
-							color: #FFF;
-							font-size: 30pt;
-							font-weight: 700;
-						}
-						Rectangle {
-							width: 5px;
-							background: #555;
-							height: anchor.font-size * 73%;
-							y: parent.height - height * 140%;
+				HorizontalLayout {
+					alignment: end;
+					Rectangle {
+						background: #000000AA;
+						HorizontalLayout {
+							alignment: end;
+							spacing: 5px;
+							padding-left: 10px;
+							padding-right: 10px;
+							anchor := Text {
+								text: root.time;
+								color: #FFF;
+								font-size: 30pt;
+								font-weight: 700;
+							}
 							Rectangle {
-								height: parent.height * root.seconds / 60;
-								y: parent.height - height;
-								background: #bbb;
+								width: 5px;
+								background: #555;
+								height: anchor.font-size * 73%;
+								y: parent.height - height * 140%;
+								Rectangle {
+									height: parent.height * root.seconds / 60;
+									y: parent.height - height;
+									background: #bbb;
+								}
 							}
 						}
 					}
