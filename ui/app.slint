@@ -1,17 +1,19 @@
+
 export App := Window {
 	property <string> date: "Present day...";
-	property <string> time: "Present time...  AHAHAHAHA";
-	property <int> seconds: 50;
+	property <string> time: "and time.";
+	property <int> seconds: 27;
 
 	property <string> status: "Initializing...";
 	property <bool> status-error: false;
+	property <[{ message: string, error: bool }]> status-log: [{message: "Initializing..."}];
 
 	property <image> bg-image;
-	property <string> bg-time: "10:00";
+	property <string> bg-date;
+	property <string> bg-time;
 	property <string> bg-text: "Loading...";
-	property <[string]> status-log: ["Initializing..."];
 
-	title: "Cam View";
+	title: "CamView";
 	background: #222;
 	default-font-family: "Noto Sans";
 	default-font-size: 26pt;
@@ -25,6 +27,7 @@ export App := Window {
 			height: 100%;
 			width: 100%;
 		}
+		// Background
 		Text {
 			text: root.bg-text;
 			font-size: 102pt;
@@ -34,7 +37,7 @@ export App := Window {
 			z: -1;
 		}
 
-
+		// Bottom
 		HorizontalLayout {
 			alignment: space-between;
 			spacing: 10px;
@@ -49,7 +52,7 @@ export App := Window {
 					Rectangle {
 						background: #000000AA;
 						HorizontalLayout {
-							padding-left: 10px;
+							padding-left: 5px;
 							padding-right: 5px;
 							max-width: root.width * 50%;
 
@@ -87,22 +90,40 @@ export App := Window {
 				alignment: end;
 
 				// Image timestamp
-				HorizontalLayout {
+				if root.bg-time != "" : HorizontalLayout {
 					alignment: end;
 					Rectangle {
 						background: #000000AA;
 						HorizontalLayout {
 							padding-left: 5px;
 							padding-right: 5px;
-							if root.bg-time != "" : Text {
+							Text {
 								text: root.bg-time;
 								color: #AAA;
 								font-size: 16pt;
 								font-weight: 500;
+								horizontal-alignment: right;
 							}
 						}
 					}
 				}
+				if root.bg-date != "" : HorizontalLayout {
+					alignment: end;
+					Rectangle {
+						background: #000000AA;
+						HorizontalLayout {
+							padding-left: 5px;
+							padding-right: 5px;
+							Text {
+								text: root.bg-date;
+								color: #AAA;
+								font-size: 12pt;
+								font-weight: 500;
+								horizontal-alignment: right;
+							}
+						}
+					}
+				}				
 				// Time
 				HorizontalLayout {
 					alignment: end;

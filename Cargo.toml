@@ -8,12 +8,13 @@ edition = "2021"
 build = "build.rs"
 
 [features]
-default = ["x11"]
-x11 = ["sixtyfps/x11"]
-wayland = ["sixtyfps/wayland"]
+default = ["qt"]
+qt = ["slint/backend-qt"]
+x11 = ["slint/backend-gl-x11"]
+wayland = ["slint/backend-gl-wayland"]
 
 [build-dependencies]
-sixtyfps-build = "^0.1.5"
+slint-build = "^0.2"
 
 [dependencies]
 # Quality of Life
@@ -21,10 +22,10 @@ anyhow = "^1"
 
 # Interface
 clap = { version = "^3", default-features = false, features = ["std", "derive"] }
-sixtyfps = { version = "^0.1.5", default-features = false, features = ["backend-gl"] }
+slint = { version = "^0.2", default-features = false, features = ["std", "compat-0-2-0"] }
 
 # Data
-image = { version = "^0.23", default-features = false, features = ["jpeg_rayon"] }
+image = { version = "^0.24", default-features = false, features = ["jpeg_rayon"] }
 chrono = { version = "^0.4", features = ["serde", "unstable-locales"] }
 serde = { version = "^1", features = ["derive"] }
 sys-locale ="^0.1"
@@ -39,4 +40,9 @@ tracing = { version = "^0.1", features = ["log", "release_max_level_debug"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [profile.release]
+strip = "debuginfo"
 lto = "thin"
+
+[patch."crates-io"]
+#slint = { git = "https://github.com/slint-ui/slint" }
+#slint-build = { git = "https://github.com/slint-ui/slint" }

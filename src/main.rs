@@ -1,8 +1,8 @@
 use std::{
 	sync::Once,
-	thread, time::{self, Duration}, sync::Arc,
+	thread, time, sync::Arc,
 };
-use sixtyfps::{self, ComponentHandle, Weak};
+use slint::{self, ComponentHandle, Weak, Model};
 
 use clap::Parser;
 use serde::{Deserialize};
@@ -13,7 +13,6 @@ use tokio;
 use reqwest as http;
 use futures_util::TryFutureExt;
 
-
 use tracing as log;
 use tracing_subscriber;
 
@@ -21,7 +20,7 @@ use anyhow::{Result, Context};
 use sys_locale;
 
 mod ui {
-	sixtyfps::include_modules!();
+	slint::include_modules!();
 }
 
 #[derive(Parser, Debug)]
@@ -79,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
 					});
 					thread::sleep(time::Duration::from_secs(10));
 				}
-				sixtyfps::invoke_from_event_loop(move || sixtyfps::quit_event_loop());
+				slint::invoke_from_event_loop(move || slint::quit_event_loop());
 			}
 		});
 
@@ -125,9 +124,9 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 	let client = http::Client::builder()
 		.connect_timeout(time::Duration::from_secs(30))
 		.timeout(time::Duration::from_secs(90))
-		//.tcp_keepalive(Some(time::Duration::from_secs(83)))
 		.pool_idle_timeout(time::Duration::from_millis(100))
-		.build().context("failed to create HTTP client")?;
+		.build()
+		.context("failed to create HTTP client")?;
 
 	let img_notify = Arc::new(sync::Notify::new());
 	let (err_tx, mut err_rx) = sync::mpsc::channel(8);
@@ -137,7 +136,11 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 		let img_notify = img_notify.clone();
 		let ui = ui.clone();
 		async move {
-			let mut status_ts = chrono::Local::now().timestamp().to_string();
+			let mut status_ts = {
+				let now = chrono::Local::now();
+				let then = now - Duration::hours(1);
+				then.timestamp().to_string()
+			};
 			loop {
 				let res = update_status(&client, &url_status, &mut status_ts);
 				let delay = match res.await {
@@ -153,7 +156,7 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 								CamState::Idle => (2, ""),
 								_ => (2, state_str),
 							};
-							ui.clone().upgrade_in_event_loop(move |ui| {
+							ui.upgrade_in_event_loop(move |ui| {
 								ui.set_status_error(false);
 								if desc.is_empty() {
 									ui.set_status(desc.into());
@@ -178,7 +181,7 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 		}
 	});
 
-	img_notify.notify_one(); // load one image
+	img_notify.notify_one(); // load current image
 	let _img_task = spawn({
 		let ui = ui.clone();
 		let client = client.clone();
@@ -196,24 +199,26 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 						}
 					},
 				};
+				let time_str = img_data.timestamp.format("%H:%M").to_string();
+				let date_str = (Local::today() != img_data.timestamp.date())
+					.then(|| img_data.timestamp.format("%Y-%m-%d").to_string())
+					.unwrap_or_default();
 
 				log::info!("loaded image: {}", &img_data.timestamp);
 				let image = img_data.image.into_rgb8();
-				ui.clone().upgrade_in_event_loop(move |ui| {
-					let pixels = sixtyfps::SharedPixelBuffer::clone_from_slice(
-						image.as_raw(),
-						image.width() as _, image.height() as _
+				ui.upgrade_in_event_loop(move |ui| {
+					let pixels = slint::SharedPixelBuffer::clone_from_slice(
+						image.as_raw(), image.width(), image.height()
 					);
-					ui.set_status(Default::default());
-					ui.set_status_error(false);
-					ui.set_bg_image(sixtyfps::Image::from_rgb8(pixels));
-					ui.set_bg_time(img_data.timestamp.into());
+					ui.set_bg_image(slint::Image::from_rgb8(pixels));
+					ui.set_bg_time(time_str.into());
+					ui.set_bg_date(date_str.into());
 				});
 			}
 		}
 	});
 
-	let _err_task = spawn({
+	let _status_task = spawn({
 		let ui = ui.clone();
 		async move {
 			loop {
@@ -222,7 +227,7 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 					None => break,
 				};
 				log::error!("{:#}", err);
-				ui.clone().upgrade_in_event_loop(move |ui| {
+				ui.upgrade_in_event_loop(move |ui| {
 
 					//ui.get_status_log().as_ref().unwrap().as_any().downcast_ref::<VecModel<SharedString>>();
 					ui.set_status_error(true);
@@ -258,7 +263,7 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 					None
 				};
 
-				ui.clone().upgrade_in_event_loop(move |ui| {
+				ui.upgrade_in_event_loop(move |ui| {
 					if let Some(date) = new_date {
 						ui.set_date(date.into());
 					}
@@ -324,12 +329,10 @@ async fn update_status(
 		log::info!("camlog: {} - {} - {}",  line.0, line.1, line.5);
 
 		let info = &line.5;
-		if !matches!(state, CamState::Ready) {
-			if info.starts_with("state=capture")	{ state = CamState::Capturing; }
-			if info.starts_with("state=upload")		{ state = CamState::Uploading; }
-			if info.starts_with("state=processing")	{ state = CamState::Processing; }
-			if info.starts_with("state=ready")		{ state = CamState::Ready; }
-		}
+		if info.starts_with("state=capture")	{ state = CamState::Capturing; }
+		if info.starts_with("state=upload")		{ state = CamState::Uploading; }
+		if info.starts_with("state=processing")	{ state = CamState::Processing; }
+		if info.starts_with("state=ready")		{ state = CamState::Ready; }
 	}
 	if let Some(line) = log.last() {
 		*timestamp = line.2.clone();
@@ -341,7 +344,7 @@ async fn update_status(
 
 struct ImageData {
 	image: DynamicImage,
-	timestamp: String,
+	timestamp: DateTime<Local>,
 }
 
 async fn update_image(
@@ -378,16 +381,10 @@ async fn update_image(
 				.context("failed to parse JPEG image")
 		)?;
 
-	let img_ts_str = if Local::today() != img_ts.date() {
-		img_ts.format("%Y-%m-%d %H:%M")
-	} else {
-		img_ts.format("%H:%M")
-	};
-
-	Ok(ImageData{ image, timestamp: img_ts_str.to_string() })
+	Ok(ImageData{ image, timestamp: img_ts })
 }
 
-fn error_showable(err: anyhow::Error) -> sixtyfps::SharedString {
+fn error_showable(err: anyhow::Error) -> slint::SharedString {
 	format!("{}: {}", err, err.root_cause()).into()
 }
 
