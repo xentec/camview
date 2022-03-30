@@ -34,8 +34,11 @@ struct Opt
 	/// Webcam name
 	#[clap(default_value = "Regensburg")]
 	webcam: String,
-}
 
+	/// Crop image with format WxH+X+Y e.g. 100x200+50+200
+	#[clap(short, long)]
+	crop: Option<Geometry>,
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>>
 {
@@ -205,7 +208,14 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 					.unwrap_or_default();
 
 				log::info!("loaded image: {}", &img_data.timestamp);
-				let image = img_data.image.into_rgb8();
+				let image = {
+					let mut img = img_data.image;
+					if let Some(g) = opt.crop.as_ref() {
+						img = img.crop_imm(g.x, g.y, g.width, g.height);
+					}
+					img.into_rgb8()
+				};
+
 				ui.upgrade_in_event_loop(move |ui| {
 					let pixels = slint::SharedPixelBuffer::clone_from_slice(
 						image.as_raw(), image.width(), image.height()
@@ -279,6 +289,41 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 	time_task.await?;
 	Ok(())
 }
+
+#[derive(Debug, Clone, Default)]
+struct Geometry {
+	width: u32,
+	height: u32,
+	x: u32,
+	y: u32,
+}
+
+impl std::str::FromStr for Geometry {
+	type Err = anyhow::Error;
+
+	// parse WxH+X+Y
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		fn parse_u32_pair(s: &str, delim: char) -> Option<(u32, u32)> {
+			let v = s.split_once(delim)
+				.and_then(|(_1, _2)|
+					[_1, _2].into_iter()
+						.map(u32::from_str)
+						.collect::<Result<Vec<u32>, _>>()
+						.ok()
+				)?;
+
+			Some((v.get(0).cloned()?, v.get(1).cloned()?))
+		}
+		s.split_once('+')
+			.and_then(|(size, offset)|
+				parse_u32_pair(size, 'x')
+					.zip(parse_u32_pair(offset, '+')))
+			.map(|((width, height), (x, y))| Self { width, height, x, y })
+				.context("failed to parse crop format")
+	}
+}
+
+
 
 #[derive(Debug, Copy, Clone)]
 enum CamState {
