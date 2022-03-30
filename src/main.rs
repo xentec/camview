@@ -2,10 +2,10 @@ use std::{
 	sync::Once,
 	thread, time, sync::Arc,
 };
-use slint::{self, ComponentHandle, Weak, Model};
+use slint::{self, ComponentHandle, Weak};
 
 use clap::Parser;
-use serde::{Deserialize};
+use serde::Deserialize;
 use chrono::{prelude::*, Duration};
 use image::{self, DynamicImage};
 
@@ -360,6 +360,18 @@ impl Into<&str> for CamState {
 	}
 }
 
+impl From<&str> for CamState {
+	fn from(s: &str) -> Self {
+		match s {
+			"capture" => CamState::Capturing,
+			"upload" => CamState::Uploading,
+			"processing" => CamState::Processing,
+			"ready" => CamState::Ready,
+			_ => CamState::Idle,
+		}
+	}
+}
+
 async fn update_status(
 		client: &reqwest::Client,
 		url_base: &reqwest::Url,
@@ -381,17 +393,18 @@ async fn update_status(
 		.send()
 		.and_then(|resp| async { resp.error_for_status() })
 		.and_then(http::Response::json::<Vec<CamLogLine>>)
-		.await.context("failed to fetch status")?;
+		.await
+		.context("failed to fetch status")?;
 
 	let mut state = CamState::Idle;
 	for line in &log {
 		log::info!("camlog: {} - {} - {}",  line.0, line.1, line.5);
 
 		let info = &line.5;
-		if info.starts_with("state=capture")	{ state = CamState::Capturing; }
-		if info.starts_with("state=upload")		{ state = CamState::Uploading; }
-		if info.starts_with("state=processing")	{ state = CamState::Processing; }
-		if info.starts_with("state=ready")		{ state = CamState::Ready; }
+		state = info.split_once(' ')
+			.and_then(|(state, _)| state.split_once('='))
+			.map(|(_, state)| CamState::from(state))
+			.unwrap_or(CamState::Ready);
 	}
 	if let Some(line) = log.last() {
 		*timestamp = line.2.clone();
