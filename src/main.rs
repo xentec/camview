@@ -403,8 +403,8 @@ async fn update_status(
 		let info = &line.5;
 		state = info.split_once(' ')
 			.and_then(|(state, _)| state.split_once('='))
-			.map(|(_, state)| CamState::from(state))
-			.unwrap_or(CamState::Ready);
+			.and_then(|(key, state)| if key == "state" { Some(CamState::from(state)) } else { None })
+			.unwrap_or(state);
 	}
 	if let Some(line) = log.last() {
 		*timestamp = line.2.clone();
