@@ -67,7 +67,7 @@ export App := Window {
 				}
 
 				// Date
-				HorizontalLayout {
+				if root.date != "" : HorizontalLayout {
 					alignment: start;
 					Rectangle {
 						background: #000000AA;
@@ -125,7 +125,7 @@ export App := Window {
 					}
 				}				
 				// Time
-				HorizontalLayout {
+				if root.time != "" : HorizontalLayout {
 					alignment: end;
 					Rectangle {
 						background: #000000AA;

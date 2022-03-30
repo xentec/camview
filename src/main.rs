@@ -38,6 +38,13 @@ struct Opt
 	/// Crop image with format WxH+X+Y e.g. 100x200+50+200
 	#[clap(short, long)]
 	crop: Option<Geometry>,
+
+	/// Crop image with format WxH+X+Y e.g. 100x200+50+200
+	#[clap(short = 't', long)]
+	show_time: bool,
+
+	#[clap(short = 'd', long)]
+	show_date: bool,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>>
@@ -133,7 +140,7 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 
 	let img_notify = Arc::new(sync::Notify::new());
 	let (err_tx, mut err_rx) = sync::mpsc::channel(8);
-	let _sync_task = spawn({
+	let sync_task = spawn({
 		let client = client.clone();
 		let err_tx = err_tx.clone();
 		let img_notify = img_notify.clone();
@@ -247,27 +254,32 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 		}
 	});
 
-	let time_task = spawn({
+	let _time_task = spawn({
 		let ui = ui.clone();
 		async move {
-			let mut old_date = chrono::Local.timestamp(0, 0).date();
-			let mut old_time = chrono::Local.timestamp(0, 0).time();
+			let mut old_now = chrono::Local.timestamp(0, 0);
+				ui.upgrade_in_event_loop(move |ui| {
+					if !opt.show_date {
+						ui.set_date("".into());
+					}
+					if !opt.show_time {
+						ui.set_time("".into());
+					}
+				});
 			loop {
 				let now = chrono::Local::now();
-				let new_time = if now.time().minute() != old_time.minute() {
+				let new_time = if opt.show_time && now.time().minute() != old_now.time().minute() {
 					let time = now.time();
 					let time_str = time.format("%H:%M").to_string();
-					old_time = time;
 					Some(time_str)
 				} else {
 					None
 				};
-				let new_date = if now.date() != old_date {
+				let new_date = if opt.show_date && now.date() != old_now.date() {
 					let date = now.date();
 					// Remind about new year
 					let date_fmt = if date.month() == 1 { "%A, %e. %B %Y" } else { "%A, %e. %B" };
 					let date_str = date.format_localized(date_fmt, locale()).to_string();
-					old_date = date;
 					Some(date_str)
 				} else {
 					None
@@ -282,11 +294,13 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 					}
 					ui.set_seconds(now.second() as i32);
 				});
+
+				old_now = now;
 				time::sleep(time::Duration::from_millis(250)).await;
 			};
 	}});
 
-	time_task.await?;
+	sync_task.await?;
 	Ok(())
 }
 
