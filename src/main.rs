@@ -215,6 +215,12 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 					.unwrap_or_default();
 
 				log::info!("loaded image: {}", &img_data.timestamp);
+				if let Some(err) = img_data.error.as_ref() {
+					let err = anyhow::format_err!("{}", err)
+						.context("camera error");
+					err_tx.send(err).await.expect("failed to send error");
+				}
+
 				let image = {
 					let mut img = img_data.image;
 					if let Some(g) = opt.crop.as_ref() {
@@ -416,6 +422,7 @@ async fn update_status(
 
 struct ImageData {
 	image: DynamicImage,
+	error: Option<String>,
 	timestamp: DateTime<Local>,
 }
 
@@ -428,6 +435,8 @@ async fn update_image(
 	#[derive(Deserialize)]
 	struct List {
 		hugeimg: String,
+		#[serde(rename="errorMsg")]
+		error: Option<String>,
 	}
 	let list = client.get(url_list.clone())
 		.send()
@@ -453,7 +462,11 @@ async fn update_image(
 				.context("failed to parse JPEG image")
 		)?;
 
-	Ok(ImageData{ image, timestamp: img_ts })
+	Ok(ImageData {
+		image,
+		timestamp: img_ts,
+		error: list.error,
+	})
 }
 
 fn error_showable(err: anyhow::Error) -> slint::SharedString {
