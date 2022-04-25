@@ -404,12 +404,14 @@ async fn update_status(
 
 	let mut state = CamState::Idle;
 	for line in &log {
-		log::info!("camlog: {} - {} - {}",  line.0, line.1, line.5);
+		log::info!("camlog: {} - {} - {}", line.0, line.1, line.5);
 
 		let info = &line.5;
 		state = info.split_once(' ')
-			.and_then(|(state, _)| state.split_once('='))
-			.and_then(|(key, state)| if key == "state" { Some(CamState::from(state)) } else { None })
+			.map(|(state, _)| state)
+			.unwrap_or(&info)
+			.split_once('=')
+			.and_then(|(key, value)| (key == "state").then(|| CamState::from(value)))
 			.unwrap_or(state);
 	}
 	if let Some(line) = log.last() {
