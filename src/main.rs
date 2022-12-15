@@ -146,12 +146,14 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 		let img_notify = img_notify.clone();
 		let ui = ui.clone();
 		async move {
+			let mut first_load = true;
 			let mut status_ts = {
 				let now = chrono::Local::now();
 				let then = now - Duration::hours(1);
 				then.timestamp().to_string()
 			};
 			loop {
+				let mut ready = first_load;
 				let res = update_status(&client, &url_status, &mut status_ts);
 				let delay = match res.await {
 					Ok(opt) => match opt {
@@ -160,9 +162,9 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 							log::debug!("status: {}", state_str);
 							let (delay, desc) = match state {
 								CamState::Ready => {
-									img_notify.notify_one();
+									ready = true;
 									(20, "")
-								},
+								}
 								CamState::Idle => (2, ""),
 								_ => (2, state_str),
 							};
@@ -186,12 +188,17 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 						20
 					},
 				};
+				if ready {
+					if first_load {
+						first_load = false;
+					}
+					img_notify.notify_one(); // load current image
+				}
 				time::sleep(time::Duration::from_secs(delay)).await;
 			}
 		}
 	});
 
-	img_notify.notify_one(); // load current image
 	let _img_task = spawn({
 		let ui = ui.clone();
 		let client = client.clone();
