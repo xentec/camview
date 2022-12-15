@@ -28,7 +28,7 @@ slint = { version = "^0.3", default-features = false, features = ["std", "compat
 image = { version = "^0.24", default-features = false, features = ["jpeg_rayon"] }
 chrono = { version = "^0.4", features = ["serde", "unstable-locales"] }
 serde = { version = "^1", features = ["derive"] }
-sys-locale ="^0.1"
+sys-locale = "^0.2"
 
 # I/O
 futures-util = "^0.3"
