@@ -209,11 +209,9 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 				let res = update_image(&client, &url_base, &url_list);
 				let img_data = match res.await {
 					Ok(data) => data,
-					Err(err) => {
-						match err_tx.send(err).await {
-							Ok(_) => continue,
-							Err(_) => break,
-						}
+					Err(err) => match err_tx.send(err).await {
+						Ok(_) => continue,
+						Err(_) => break,
 					},
 				};
 				let time_str = img_data.timestamp.format("%H:%M").to_string();
@@ -293,7 +291,11 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 				let new_date = if opt.show_date && now.date() != old_now.date() {
 					let date = now.date();
 					// Remind about new year
-					let date_fmt = if date.month() == 1 { "%A, %e. %B %Y" } else { "%A, %e. %B" };
+					let date_fmt = if date.month() == 1 {
+						"%A, %e. %B %Y"
+					} else {
+						"%A, %e. %B"
+					};
 					let date_str = date.format_localized(date_fmt, locale()).to_string();
 					Some(date_str)
 				} else {
@@ -313,8 +315,9 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 
 				old_now = now;
 				time::sleep(time::Duration::from_millis(250)).await;
-			};
-	}});
+			}
+		}
+	});
 
 	sync_task.await?;
 	Ok(())
@@ -401,14 +404,15 @@ async fn update_status(
 	};
 
 	#[derive(Deserialize)]
-	struct CamLogLine(String,String,String,String,String,String);
+	struct CamLogLine(String, String, String, String, String, String);
 
 	log::debug!("loading status from {} ...", &url_status);
-	let log = client.get(url_status.clone())
+	let log: Vec<CamLogLine> = client
+		.get(url_status.clone())
 		.header("Connection", "keep-alive")
 		.send()
 		.and_then(|resp| async { resp.error_for_status() })
-		.and_then(http::Response::json::<Vec<CamLogLine>>)
+		.and_then(http::Response::json)
 		.await
 		.context("failed to fetch status")?;
 
@@ -428,7 +432,11 @@ async fn update_status(
 		*timestamp = line.2.clone();
 	}
 
-	let state = if matches!(state, CamState::Idle) { None } else { Some(state) };
+	let state = if matches!(state, CamState::Idle) {
+		None
+	} else {
+		Some(state)
+	};
 	Ok(state)
 }
 
@@ -447,7 +455,7 @@ async fn update_image(
 	#[derive(Deserialize)]
 	struct List {
 		hugeimg: String,
-		#[serde(rename="errorMsg")]
+		#[serde(rename = "errorMsg")]
 		error: Option<String>,
 	}
 	let list = client.get(url_list.clone())
@@ -469,10 +477,10 @@ async fn update_image(
 		.and_then(|resp| resp.bytes())
 		.await
 		.context("failed to fetch image")
-		.and_then(|jpeg_data|
+		.and_then(|jpeg_data| {
 			image::load_from_memory_with_format(&jpeg_data, image::ImageFormat::Jpeg)
 				.context("failed to parse JPEG image")
-		)?;
+		})?;
 
 	Ok(ImageData {
 		image,
