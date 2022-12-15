@@ -10,11 +10,11 @@ build = "build.rs"
 [features]
 default = ["qt"]
 qt = ["slint/backend-qt"]
-x11 = ["slint/backend-gl-x11"]
-wayland = ["slint/backend-gl-wayland"]
+x11 = ["slint/backend-winit-x11"]
+wayland = ["slint/backend-winit-wayland"]
 
 [build-dependencies]
-slint-build = "^0.2"
+slint-build = "^0.3"
 
 [dependencies]
 # Quality of Life
@@ -22,7 +22,7 @@ anyhow = "^1"
 
 # Interface
 clap = { version = "^4", default-features = false, features = ["std", "derive", "help"] }
-slint = { version = "^0.2", default-features = false, features = ["std", "compat-0-2-0"] }
+slint = { version = "^0.3", default-features = false, features = ["std", "compat-0-3-0"] }
 
 # Data
 image = { version = "^0.24", default-features = false, features = ["jpeg_rayon"] }

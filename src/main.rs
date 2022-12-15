@@ -82,13 +82,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
 					log::error!("PANIC! {}", err_str);
 					thread::sleep(time::Duration::from_secs(1));
 					ui.upgrade_in_event_loop(move |ui| {
-						ui.set_bg_text("PANIC!".into());
-						ui.set_status_error(true);
-						ui.set_status(err_str.into());
-					});
+							ui.set_bg_text("PANIC!".into());
+							ui.set_status_error(true);
+							ui.set_status(err_str.into());
+						})
+						.ok();
 					thread::sleep(time::Duration::from_secs(10));
 				}
-				slint::invoke_from_event_loop(move || slint::quit_event_loop());
+				slint::invoke_from_event_loop(move || slint::quit_event_loop().expect("failed to quit UI"))
+					.ok();
 			}
 		});
 
@@ -169,24 +171,22 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 								_ => (2, state_str),
 							};
 							ui.upgrade_in_event_loop(move |ui| {
-								ui.set_status_error(false);
-								if desc.is_empty() {
-									ui.set_status(desc.into());
-								} else {
-									ui.set_status(format!("Updating: {desc}...").into());
-								}
-							});
+									ui.set_status_error(false);
+									if desc.is_empty() {
+										ui.set_status(desc.into());
+									} else {
+										ui.set_status(format!("Updating: {desc}...").into());
+									}
+								})
+								.ok();
 							delay
-						},
-						None => {
-							2
-						},
+						}
+						None => 2,
 					},
 					Err(err) => {
-						err_tx.send(err).await
-							.expect("failed to send error");
+						err_tx.send(err).await.expect("failed to send error");
 						20
-					},
+					}
 				};
 				if ready {
 					if first_load {
@@ -237,13 +237,14 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 				};
 
 				ui.upgrade_in_event_loop(move |ui| {
-					let pixels = slint::SharedPixelBuffer::clone_from_slice(
-						image.as_raw(), image.width(), image.height()
-					);
-					ui.set_bg_image(slint::Image::from_rgb8(pixels));
-					ui.set_bg_time(time_str.into());
-					ui.set_bg_date(date_str.into());
-				});
+						let pixels = slint::SharedPixelBuffer::clone_from_slice(
+							image.as_raw(), image.width(), image.height()
+						);
+						ui.set_bg_image(slint::Image::from_rgb8(pixels));
+						ui.set_bg_time(time_str.into());
+						ui.set_bg_date(date_str.into());
+					})
+				.ok();
 			}
 		}
 	});
@@ -258,11 +259,11 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 				};
 				log::error!("{:#}", err);
 				ui.upgrade_in_event_loop(move |ui| {
-
-					//ui.get_status_log().as_ref().unwrap().as_any().downcast_ref::<VecModel<SharedString>>();
-					ui.set_status_error(true);
-					ui.set_status(error_showable(err));
-				});
+						//ui.get_status_log().as_ref().unwrap().as_any().downcast_ref::<VecModel<SharedString>>();
+						ui.set_status_error(true);
+						ui.set_status(error_showable(err));
+					})
+					.ok();
 			}
 		}
 	});
@@ -271,14 +272,15 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 		let ui = ui.clone();
 		async move {
 			let mut old_now = chrono::Local.timestamp(0, 0);
-				ui.upgrade_in_event_loop(move |ui| {
+			ui.upgrade_in_event_loop(move |ui| {
 					if !opt.show_date {
 						ui.set_date("".into());
 					}
 					if !opt.show_time {
 						ui.set_time("".into());
 					}
-				});
+				})
+				.ok();
 			loop {
 				let now = chrono::Local::now();
 				let new_time = if opt.show_time && now.time().minute() != old_now.time().minute() {
@@ -299,14 +301,15 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 				};
 
 				ui.upgrade_in_event_loop(move |ui| {
-					if let Some(date) = new_date {
-						ui.set_date(date.into());
-					}
-					if let Some(time) = new_time {
-						ui.set_time(time.into());
-					}
-					ui.set_seconds(now.second() as i32);
-				});
+						if let Some(date) = new_date {
+							ui.set_date(date.into());
+						}
+						if let Some(time) = new_time {
+							ui.set_time(time.into());
+						}
+						ui.set_seconds(now.second() as i32);
+					})
+					.ok();
 
 				old_now = now;
 				time::sleep(time::Duration::from_millis(250)).await;
