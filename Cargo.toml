@@ -21,7 +21,7 @@ slint-build = "^0.2"
 anyhow = "^1"
 
 # Interface
-clap = { version = "^3", default-features = false, features = ["std", "derive"] }
+clap = { version = "^4", default-features = false, features = ["std", "derive", "help"] }
 slint = { version = "^0.2", default-features = false, features = ["std", "compat-0-2-0"] }
 
 # Data

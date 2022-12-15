@@ -25,9 +25,8 @@ mod ui {
 
 #[derive(Parser, Debug)]
 #[clap(about, version)]
-struct Opt
-{
-	/// URL of the website
+struct Opt {
+	/// URL of the webcam website
 	#[clap(default_value = "http://othcam.oth-regensburg.de/webcam")]
 	base_url: reqwest::Url,
 
@@ -39,10 +38,11 @@ struct Opt
 	#[clap(short, long)]
 	crop: Option<Geometry>,
 
-	/// Crop image with format WxH+X+Y e.g. 100x200+50+200
+	/// Show current time
 	#[clap(short = 't', long)]
 	show_time: bool,
 
+	/// Show current date
 	#[clap(short = 'd', long)]
 	show_date: bool,
 }
