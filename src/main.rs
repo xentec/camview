@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
 		.compact()
 		.init();
 
-	let ui = ui::App::new();
+	let ui = ui::App::new()?;
 	let io_task_handle = thread::Builder::new()
 		.name("io-runtime".into())
 		.spawn({
@@ -76,7 +76,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
 				{
 					let err_str = panic.downcast::<String>()
 						.map(|str_box| *str_box)
-						.or_else(|panic| panic.downcast::<&str>().map(|str_box| str_box.to_string()))
+						.or_else(|panic| panic.downcast::<&str>()
+							.map(|str_box| str_box.to_string())
+						)
 						.unwrap_or_else(|panic| format!("unknown panic type: {:?}", panic));
 
 					log::error!("PANIC! {}", err_str);
@@ -94,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
 			}
 		});
 
-	ui.run();
+	ui.run()?;
 	Ok(())
 }
 
@@ -215,7 +217,7 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 					},
 				};
 				let time_str = img_data.timestamp.format("%H:%M").to_string();
-				let date_str = (Local::today() != img_data.timestamp.date())
+				let date_str = (Local::now().date_naive() != img_data.timestamp.date_naive())
 					.then(|| img_data.timestamp.format("%Y-%m-%d").to_string())
 					.unwrap_or_default();
 
@@ -269,7 +271,7 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 	let _time_task = spawn({
 		let ui = ui.clone();
 		async move {
-			let mut old_now = chrono::Local.timestamp(0, 0);
+			let mut old_now = chrono::Local.timestamp_opt(0, 0).unwrap();
 			ui.upgrade_in_event_loop(move |ui| {
 					if !opt.show_date {
 						ui.set_date("".into());
@@ -288,8 +290,8 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 				} else {
 					None
 				};
-				let new_date = if opt.show_date && now.date() != old_now.date() {
-					let date = now.date();
+				let new_date = if opt.show_date && now.date_naive() != old_now.date_naive() {
+					let date = now.date_naive();
 					// Remind about new year
 					let date_fmt = if date.month() == 1 {
 						"%A, %e. %B %Y"
@@ -338,8 +340,8 @@ impl std::str::FromStr for Geometry {
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		fn parse_u32_pair(s: &str, delim: char) -> Option<(u32, u32)> {
 			let v = s.split_once(delim)
-				.and_then(|(_1, _2)|
-					[_1, _2].into_iter()
+				.and_then(|(x, y)|
+					[x, y].into_iter()
 						.map(u32::from_str)
 						.collect::<Result<Vec<u32>, _>>()
 						.ok()

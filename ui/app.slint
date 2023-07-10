@@ -1,26 +1,27 @@
 
-export App := Window {
-	property <string> date: "Present day...";
-	property <string> time: "and time.";
-	property <int> seconds: 27;
+export component App inherits Window {
+	in property <string> date: "Present day...";
+	in property <string> time: "and time.";
+	in property <int> seconds: 27;
 
-	property <string> status: "Initializing...";
-	property <bool> status-error: false;
-	property <[{ message: string, error: bool }]> status-log: [{message: "Initializing..."}];
+	in property <string> status: "Initializing...";
+	in property <bool> status-error: false;
+	in property <[{ message: string, error: bool }]> status-log: [{message: "Initializing..."}];
 
-	property <image> bg-image;
-	property <string> bg-date;
-	property <string> bg-time;
-	property <string> bg-text: "Loading...";
+	in property <image> bg-image;
+	in property <string> bg-date;
+	in property <string> bg-time;
+	in property <string> bg-text: "Loading...";
 
 	title: "CamView";
 	background: #222;
 	default-font-family: "Noto Sans";
 	default-font-size: 26pt;
-	preferred-height: 1280px;
-	preferred-width: 720px;
 	
 	Flickable {
+		height: 100%;
+		width: 100%;
+
 		Image {
 			source: root.bg-image;
 			image-fit: cover;
@@ -32,123 +33,127 @@ export App := Window {
 			text: root.bg-text;
 			font-size: 102pt;
 			color: #FFFFFF33;
-			x: (root.width - width) * 50%;
-			y: (root.height - height) * 50%;
+			x: (root.width - self.width) * 50%;
+			y: (root.height - self.height) * 50%;
 			z: -1;
 		}
 
-		// Bottom
-		HorizontalLayout {
+		VerticalLayout {
 			alignment: space-between;
-			spacing: 10px;
 
-			// Left side
-			VerticalLayout {
-				alignment: end;
+			// Bottom
+			HorizontalLayout {
+				alignment: space-between;
+				spacing: 10px;
 
-				// Status panel
-				HorizontalLayout {
-					alignment: start;
-					Rectangle {
-						background: #000000AA;
-						HorizontalLayout {
-							padding-left: 5px;
-							padding-right: 5px;
-							max-width: root.width * 50%;
+				// Left side
+				VerticalLayout {
+					alignment: end;
 
-							if root.status != "" : Text {
-								text: root.status;
-								color: root.status-error ? #FA5 : #AAA;
-								font-size: 12pt;
-								font-weight: 500;
+					// Status panel
+					HorizontalLayout {
+						alignment: start;
+						Rectangle {
+							background: #000000AA;
+							HorizontalLayout {
+								padding-left: 5px;
+								padding-right: 5px;
+								max-width: root.width * 50%;
+
+								if root.status != "" : Text {
+									text: root.status;
+									color: root.status-error ? #FA5 : #AAA;
+									font-size: 12pt;
+									font-weight: 500;
+								}
+							}
+						}
+					}
+
+					// Date
+					if root.date != "" : HorizontalLayout {
+						alignment: start;
+						Rectangle {
+							background: #000000AA;
+							HorizontalLayout {
+								padding-left: 10px;
+								padding-right: 10px;
+								Text {
+									text: root.date;
+									color: #FFF;
+									font-size: 30pt;
+									font-weight: 700;
+								}
 							}
 						}
 					}
 				}
 
-				// Date
-				if root.date != "" : HorizontalLayout {
-					alignment: start;
-					Rectangle {
-						background: #000000AA;
-						HorizontalLayout {
-							padding-left: 10px;
-							padding-right: 10px;
-							Text {
-								text: root.date;
-								color: #FFF;
-								font-size: 30pt;
-								font-weight: 700;
-							}
-						}
-					}
-				}
-			}
+				// Right side
+				VerticalLayout {
+					alignment: end;
 
-			// Right side
-			VerticalLayout {
-				alignment: end;
-
-				// Image timestamp
-				if root.bg-time != "" : HorizontalLayout {
-					alignment: end;
-					Rectangle {
-						background: #000000AA;
-						HorizontalLayout {
-							padding-left: 5px;
-							padding-right: 5px;
-							Text {
-								text: root.bg-time;
-								color: #AAA;
-								font-size: 16pt;
-								font-weight: 500;
-								horizontal-alignment: right;
+					// Image timestamp
+					if root.bg-time != "" : HorizontalLayout {
+						alignment: end;
+						Rectangle {
+							background: #000000AA;
+							HorizontalLayout {
+								padding-left: 5px;
+								padding-right: 5px;
+								Text {
+									text: root.bg-time;
+									color: #AAA;
+									font-size: 16pt;
+									font-weight: 500;
+									horizontal-alignment: right;
+								}
 							}
 						}
 					}
-				}
-				if root.bg-date != "" : HorizontalLayout {
-					alignment: end;
-					Rectangle {
-						background: #000000AA;
-						HorizontalLayout {
-							padding-left: 5px;
-							padding-right: 5px;
-							Text {
-								text: root.bg-date;
-								color: #AAA;
-								font-size: 12pt;
-								font-weight: 500;
-								horizontal-alignment: right;
+					if root.bg-date != "" : HorizontalLayout {
+						alignment: end;
+						Rectangle {
+							background: #000000AA;
+							HorizontalLayout {
+								padding-left: 5px;
+								padding-right: 5px;
+								Text {
+									text: root.bg-date;
+									color: #AAA;
+									font-size: 12pt;
+									font-weight: 500;
+									horizontal-alignment: right;
+								}
 							}
 						}
 					}
-				}				
-				// Time
-				if root.time != "" : HorizontalLayout {
-					alignment: end;
-					Rectangle {
-						background: #000000AA;
-						HorizontalLayout {
-							alignment: end;
-							spacing: 5px;
-							padding-left: 10px;
-							padding-right: 10px;
-							anchor := Text {
-								text: root.time;
-								color: #FFF;
-								font-size: 30pt;
-								font-weight: 700;
-							}
-							Rectangle {
-								width: 5px;
-								background: #555;
-								height: anchor.font-size * 73%;
-								y: parent.height - height * 140%;
+					// Time
+					if root.time != "" : HorizontalLayout {
+						alignment: end;
+						Rectangle {
+							background: #000000AA;
+							HorizontalLayout {
+								alignment: end;
+								spacing: 5px;
+								padding-left: 10px;
+								padding-right: 10px;
+								anchor := Text {
+									text: root.time;
+									color: #FFF;
+									font-size: 30pt;
+									font-weight: 700;
+								}
 								Rectangle {
-									height: parent.height * root.seconds / 60;
-									y: parent.height - height;
-									background: #bbb;
+									width: 5px;
+									background: #555;
+									height: anchor.font-size * 73%;
+									y: parent.height - self.height * 140%;
+									Rectangle {
+										height: parent.height * root.seconds / 60;
+										y: parent.height - self.height;
+										background: #bbb;
+									}
 								}
 							}
 						}

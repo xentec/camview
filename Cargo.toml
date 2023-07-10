@@ -10,11 +10,11 @@ build = "build.rs"
 [features]
 default = ["qt"]
 qt = ["slint/backend-qt"]
-x11 = ["slint/backend-winit-x11"]
-wayland = ["slint/backend-winit-wayland"]
+wayland = ["slint/backend-winit-wayland", "slint/renderer-winit-skia-opengl"]
+x11 = ["slint/backend-winit-x11", "slint/renderer-winit-skia-opengl"]
 
 [build-dependencies]
-slint-build = "^0.3"
+slint-build = "^1"
 
 [dependencies]
 # Quality of Life
@@ -22,13 +22,13 @@ anyhow = "^1"
 
 # Interface
 clap = { version = "^4", default-features = false, features = ["std", "derive", "help"] }
-slint = { version = "^0.3", default-features = false, features = ["std", "compat-0-3-0"] }
+slint = { version = "^1", default-features = false, features = ["std", "compat-1-0"] }
 
 # Data
 image = { version = "^0.24", default-features = false, features = ["jpeg_rayon"] }
 chrono = { version = "^0.4", features = ["serde", "unstable-locales"] }
 serde = { version = "^1", features = ["derive"] }
-sys-locale = "^0.2"
+sys-locale = "^0.3"
 
 # I/O
 futures-util = "^0.3"
