@@ -33,7 +33,7 @@ sys-locale = "^0.3"
 # I/O
 futures-util = "^0.3"
 tokio = { version = "^1", features = ["io-util","time"] }
-reqwest = { version = "^0.11", default-features = false, features = ["json","trust-dns"] }
+reqwest = { version = "^0.11", default-features = false, features = ["json","trust-dns","default-tls"] }
 
 # Logging
 tracing = { version = "^0.1", features = ["log", "release_max_level_debug"] }

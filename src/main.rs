@@ -34,7 +34,7 @@ struct Opt {
 	#[clap(default_value = "Regensburg")]
 	webcam: String,
 
-	/// Crop image with format WxH+X+Y e.g. 100x200+50+200
+	/// Crop and offset displayed image with format WxH+X+Y e.g. 100x200+50+200
 	#[clap(short, long)]
 	crop: Option<Geometry>,
 
@@ -45,6 +45,10 @@ struct Opt {
 	/// Show current date
 	#[clap(short = 'd', long)]
 	show_date: bool,
+
+	/// Show current weather for <lat>,<long>
+	#[clap(short = 'w', long)]
+	weather: Option<Location>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>>
@@ -194,7 +198,7 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 					if first_load {
 						first_load = false;
 					}
-					img_notify.notify_one(); // load current image
+					img_notify.notify_waiters(); // load current image
 				}
 				time::sleep(time::Duration::from_secs(delay)).await;
 			}
@@ -204,6 +208,8 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 	let _img_task = spawn({
 		let ui = ui.clone();
 		let client = client.clone();
+		let img_notify = img_notify.clone();
+		let err_tx = err_tx.clone();
 		async move {
 			loop {
 				img_notify.notified().await;
@@ -248,6 +254,46 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 			}
 		}
 	});
+
+	let _weather_task = if let Some(location) = opt.weather {
+		spawn({
+			let ui = ui.clone();
+			let client = client.clone();
+			let img_notify = img_notify.clone();
+			let err_tx = err_tx.clone();
+			async move {
+				loop {
+					img_notify.notified().await;
+
+					log::debug!("fetching weather data...");
+					let res = update_weather(&client, &location);
+					let wtr = match res.await {
+						Ok(data) => data,
+						Err(err) => match err_tx.send(err).await {
+							Ok(_) => continue,
+							Err(_) => break,
+						},
+					};
+
+					log::debug!("fetched weather data: {:?}", wtr);
+
+					let wtr_time = NaiveDateTime::from_timestamp_opt(wtr.time as _, 0).unwrap()
+						.and_local_timezone(Utc).unwrap()
+						.with_timezone(&Local)
+						.time()
+						.format("%H:%M").to_string();
+
+					ui.upgrade_in_event_loop(move |ui| {
+						ui.set_wtr_time(wtr_time.into());
+						ui.set_wtr_temperature(wtr.temperature.round() as i32);
+					})
+					.ok();
+				}
+			}
+		})
+	} else {
+		spawn(async {})
+	};
 
 	let _status_task = spawn({
 		let ui = ui.clone();
@@ -338,26 +384,49 @@ impl std::str::FromStr for Geometry {
 
 	// parse WxH+X+Y
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		fn parse_u32_pair(s: &str, delim: char) -> Option<(u32, u32)> {
-			let v = s.split_once(delim)
-				.and_then(|(x, y)|
-					[x, y].into_iter()
-						.map(u32::from_str)
-						.collect::<Result<Vec<u32>, _>>()
-						.ok()
-				)?;
-
-			Some((v.get(0).cloned()?, v.get(1).cloned()?))
-		}
 		s.split_once('+')
 			.and_then(|(size, offset)|
-				parse_u32_pair(size, 'x')
-					.zip(parse_u32_pair(offset, '+')))
+				parse_pair(size, 'x')
+					.zip(parse_pair(offset, '+')))
 			.map(|((width, height), (x, y))| Self { width, height, x, y })
 				.context("failed to parse crop format")
 	}
 }
 
+
+
+#[derive(Debug, Clone, Default)]
+struct Location {
+	latitude: f32,
+	longitude: f32,
+}
+
+impl std::str::FromStr for Location {
+	type Err = anyhow::Error;
+
+	// parse x.xx,x.xx
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		parse_pair(s, ',')
+			.map(|(latitude, longitude)| Self { latitude, longitude })
+			.context("failed to parse location format")
+	}
+}
+
+
+
+fn parse_pair<T>(s: &str, delim: char) -> Option<(T, T)>
+	where T: std::str::FromStr + Clone
+{
+	let v = s.split_once(delim)
+		.and_then(|(x, y)|
+			[x, y].into_iter()
+				.map(T::from_str)
+				.collect::<Result<Vec<T>, _>>()
+				.ok()
+		)?;
+
+	Some((v.get(0).cloned()?, v.get(1).cloned()?))
+}
 
 
 #[derive(Debug, Copy, Clone)]
@@ -490,6 +559,57 @@ async fn update_image(
 		error: list.error,
 	})
 }
+
+#[derive(Deserialize, Debug)]
+struct Weather {
+	temperature: f32,
+	windspeed: f32,
+	winddirection: f32,
+	weathercode: u8,
+	time: u64,
+	is_day: u8,
+}
+
+async fn update_weather(client: &reqwest::Client, loc: &Location) -> Result<Weather>
+{
+	#[derive(Deserialize, Debug)]
+	struct Response {
+		current_weather: Option<Weather>,
+		#[serde(rename = "reason")]
+		err_reason: Option<String>,
+	//	hourly: Hourly,
+	}
+
+	client.get("https://api.open-meteo.com/v1/forecast")
+		.query(&[
+			//("latitude", "49.0024"),
+			("latitude", loc.latitude),
+			//("longitude", "12.09788"),
+			("longitude", loc.longitude),			
+		])
+		.query(&[
+			//("hourly", "temperature_2m,apparent_temperature,weathercode,windspeed_10m"),
+			("current_weather", "true"),
+			("timeformat", "unixtime"),
+			//("past_days", "1"),
+			//("forecast_days", "3"),
+			//("timezone", "Europe/Berlin"),
+		])
+		.send().await?
+		.json::<Response>().await
+		.context("failed to fetch weather data")
+		.and_then(|res| {
+			if let Some(err) = res.err_reason {
+				anyhow::bail!("{err}");
+			}
+			if let Some(wtr) = res.current_weather {
+				Ok(wtr)
+			} else {
+				anyhow::bail!("missing current_weather and now error")
+			}
+		})
+}
+
 
 fn error_showable(err: anyhow::Error) -> slint::SharedString {
 	format!("{}: {}", err, err.root_cause()).into()
