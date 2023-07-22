@@ -1,4 +1,96 @@
 
+component WeatherPanel inherits VerticalLayout {
+	in property <string> time;
+	in property <image> icon;
+	in property <int> temperature;
+	in property <int> precipitation;
+	in property <int> precipitation-propability;
+
+	in property <brush> background: #000000AA;
+	in property <length> size;
+
+	alignment: start;
+
+	Rectangle {
+		background: root.background;
+		HorizontalLayout {
+			alignment: space-between;
+			spacing: 10px;
+
+			padding-top: 2px;
+			padding-bottom: self.padding-top;
+			padding-left: 5px;
+			padding-right: self.padding-left;
+
+			VerticalLayout {
+				HorizontalLayout {
+					spacing: 5px;
+					VerticalLayout {
+						alignment: space-around;
+						Image {
+							source: root.icon;
+							width: root.size;
+							height: self.width;
+							image-fit: cover;
+						}
+					}
+					Text {
+						text: root.temperature + " °C";
+						color: #FFF;
+						font-size: root.size;
+						font-weight: 500;
+
+						horizontal-alignment: center;
+						vertical-alignment: center;
+					}
+				}
+				if root.time != "" : HorizontalLayout {
+
+					spacing: 5px;
+					Text {
+						text: root.precipitation-propability + " %";
+						color: #FFF;
+						font-size: root.size * 0.4;
+						font-weight: 300;
+
+						horizontal-alignment: center;
+						vertical-alignment: center;
+					}
+					Text {
+						text: root.precipitation + " mm";
+						color: #FFF;
+						font-size: root.size * 0.4;
+						font-weight: 300;
+
+						horizontal-alignment: left;
+						vertical-alignment: center;
+					}
+				}
+			}
+		}
+	}
+
+	if root.time != "" : HorizontalLayout {
+		alignment: end;
+		Rectangle {
+			background: root.background;
+			HorizontalLayout {
+				padding-left: 5px;
+				padding-right: 5px;
+				Text {
+					text: root.time;
+					color: #AAA;
+					font-size: root.size * 0.3;
+					font-weight: 300;
+					horizontal-alignment: right;
+				}
+			}
+		}
+	}
+
+}
+
+
 export component App inherits Window {
 	in property <string> date: "Present day...";
 	in property <string> time: "and time.";
@@ -14,12 +106,20 @@ export component App inherits Window {
 	in property <string> bg-text: "Loading...";
 
 	in property <string> wtr-time;
+	in property <image> wtr-icon;
 	in property <int> wtr-temperature;
+
+	in property <string> wtr-forecast-time;
+	in property <image> wtr-forecast-icon;
+	in property <int> wtr-forecast-temperature;
+	in property <int> wtr-forecast-precipitation;
+	in property <int> wtr-forecast-precipitation-propability;
+
 	title: "CamView";
 	background: #222;
 	default-font-family: "Noto Sans";
 	default-font-size: 26pt;
-	
+
 	Flickable {
 		height: 100%;
 		width: 100%;
@@ -54,28 +154,31 @@ export component App inherits Window {
 				if root.wtr-time != "" : VerticalLayout {
 					alignment: start;
 
-					Rectangle {
-						background: #000000AA;
+					HorizontalLayout {
+						alignment: end;
+						max-width: root.width * 50%;
 
-						HorizontalLayout {
-							alignment: space-between;
-							spacing: 10px;
+						// Forecast
+						WeatherPanel {
+							time: root.wtr-forecast-time;
+							icon: wtr-forecast-icon;
+							temperature: wtr-forecast-temperature;
+							precipitation: root.wtr-forecast-precipitation;
+							precipitation-propability: root.wtr-forecast-precipitation-propability;
 
-							padding-left: 10px;
-							padding-right: 10px;
-							max-width: root.width * 50%;
-						
-							Text {
-								text: root.wtr-temperature + " °C";
-								color: #FFF;
-								font-size: 42pt;
-								font-weight: 600;
-							}
+							size: 32px;
+							background: #00000099;
+						}
+						// Current weather
+						WeatherPanel {
+							icon: wtr-icon;
+							temperature: wtr-temperature;
+
+							size: 56px;
 						}
 					}
 				}
 			}
-
 
 			// Bottom
 			HorizontalLayout {

@@ -17,6 +17,8 @@ use tracing as log;
 use tracing_subscriber;
 
 use anyhow::{Result, Context};
+use num_enum::TryFromPrimitive;
+use itertools::izip;
 use sys_locale;
 
 mod ui {
@@ -266,8 +268,7 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 					img_notify.notified().await;
 
 					log::debug!("fetching weather data...");
-					let res = update_weather(&client, &location);
-					let wtr = match res.await {
+					let wd = match update_weather(&client, &location).await {
 						Ok(data) => data,
 						Err(err) => match err_tx.send(err).await {
 							Ok(_) => continue,
@@ -275,17 +276,42 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 						},
 					};
 
-					log::debug!("fetched weather data: {:?}", wtr);
+					log::debug!("fetched weather data: {:?}", wd.current);
 
-					let wtr_time = NaiveDateTime::from_timestamp_opt(wtr.time as _, 0).unwrap()
-						.and_local_timezone(Utc).unwrap()
-						.with_timezone(&Local)
-						.time()
-						.format("%H:%M").to_string();
+					let wtr_icon_path: std::path::PathBuf = format!("/usr/share/icons/Arc/status/symbolic/weather-{}-symbolic.svg",
+							wd.current.weathercode.into_image_name(!wd.current.is_day))
+						.into();
+
+					let forecast = wd.forecast.first().cloned().unwrap();
+
+					let fct_icon_path: std::path::PathBuf = format!("/usr/share/icons/Arc/status/symbolic/weather-{}-symbolic.svg",
+							forecast.weathercode.into_image_name(!forecast.is_day))
+						.into();
 
 					ui.upgrade_in_event_loop(move |ui| {
-						ui.set_wtr_time(wtr_time.into());
-						ui.set_wtr_temperature(wtr.temperature.round() as i32);
+						let wtr_icon = match slint::Image::load_from_path(&wtr_icon_path) {
+							Ok(v) => v,
+							Err(_) => {
+								log::error!("failed to load weather icon for code {:?}", wd.current.weathercode);
+								Default::default()
+							},
+						};
+						ui.set_wtr_icon(wtr_icon);
+						ui.set_wtr_temperature(wd.current.temperature.round() as i32);
+						ui.set_wtr_time(wd.current.time.time().format("%H:%M").to_string().into());
+
+						let wtr_icon = match slint::Image::load_from_path(&fct_icon_path) {
+							Ok(v) => v,
+							Err(_) => {
+								log::error!("failed to load weather icon for code {:?}", forecast.weathercode);
+								Default::default()
+							},
+						};
+						ui.set_wtr_forecast_icon(wtr_icon);
+						ui.set_wtr_forecast_temperature(forecast.temperature.round() as i32);
+						ui.set_wtr_forecast_time(forecast.time.time().format("%H:%M").to_string().into());
+						ui.set_wtr_forecast_precipitation(forecast.precipitation as _);
+						ui.set_wtr_forecast_precipitation_propability(forecast.precipitation_probability as _);
 					})
 					.ok();
 				}
@@ -560,54 +586,222 @@ async fn update_image(
 	})
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Clone)]
 struct Weather {
+	time: DateTime<Local>,
+	is_day: bool,
+
+	weathercode: WeatherCode,
 	temperature: f32,
 	windspeed: f32,
 	winddirection: f32,
-	weathercode: u8,
-	time: u64,
-	is_day: u8,
 }
 
-async fn update_weather(client: &reqwest::Client, loc: &Location) -> Result<Weather>
+#[derive(Debug, Clone)]
+struct WeatherForecast {
+	time: DateTime<Local>,
+	is_day: bool,
+
+	weathercode: WeatherCode,
+	temperature: f32,
+	windspeed: f32,
+	winddirection: f32,
+	precipitation: f32,
+	precipitation_probability: u8,
+}
+
+#[derive(Debug)]
+struct WeatherData {
+	current: Weather,
+	forecast: Vec<WeatherForecast>,
+}
+
+/// WMO Weather interpretation codes (WW)
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, TryFromPrimitive)]
+enum WeatherCode {
+	ClearSky = 0,
+
+	MainlyClear = 1,
+	PartlyCloudy = 2,
+	Overcast = 3,
+
+	Fog = 45,
+	FogRime = 48,
+
+	DrizzleLight = 51,
+	DrizzleModerate = 53,
+	DrizzleDense = 55,
+	DrizzleFreezingLight = 56,
+	DrizzleFreezingDense = 57,
+
+	RainLight = 61,
+	RainModerate = 63,
+	RainHeavy = 65,
+	RainFreezingLight = 66,
+	RainFreezingHeavy = 67,
+
+	SnowFallSlight = 71,
+	SnowFallModerate = 73,
+	SnowFallHeavy = 75,
+	SnowGrains = 77,
+
+	ShowerRainLight = 80,
+	ShowerRainModerate = 81,
+	ShowerRainViolent = 82,
+	ShowerSnowSlight = 85,
+	ShowerSnowHeavy = 86,
+
+	Thunderstorm = 95,
+	ThunderstormWithHailSlight = 96,
+	ThunderstormWithHailHeavy = 99,
+}
+
+impl WeatherCode {
+	fn into_image_name(&self, is_night: bool) -> &'static str {
+		match self {
+			Self::ClearSky if is_night => "clear-night",
+			Self::ClearSky => "clear",
+			Self::MainlyClear if is_night => "few-clouds-night",
+			Self::MainlyClear => "few-clouds",
+			Self::PartlyCloudy  if is_night => "clouds-night",
+			Self::PartlyCloudy => "clouds",
+			Self::Overcast => "overcast",
+
+			Self::Fog | Self::FogRime => "fog",
+
+			Self::DrizzleLight | Self::DrizzleModerate
+				| Self::DrizzleDense | Self::DrizzleFreezingLight
+				| Self::DrizzleFreezingDense => "showers-scattered",
+
+			Self::RainLight | Self::RainModerate | Self::RainHeavy
+				| Self::RainFreezingLight | Self::RainFreezingHeavy
+				| Self::ShowerRainLight | Self::ShowerRainModerate
+				| Self::ShowerRainViolent => "showers",
+
+			// TODO: better icon
+			Self::ShowerSnowSlight | Self::ShowerSnowHeavy => "snow",
+
+			Self::SnowFallSlight | Self::SnowFallModerate | Self::SnowFallHeavy
+				| Self::SnowGrains => "snow",
+
+			Self::Thunderstorm => "storm",
+			Self::ThunderstormWithHailSlight | Self::ThunderstormWithHailHeavy => "severe-alert",
+		}
+	}
+}
+
+
+async fn update_weather(client: &reqwest::Client, loc: &Location) -> Result<WeatherData>
 {
 	#[derive(Deserialize, Debug)]
 	struct Response {
-		current_weather: Option<Weather>,
+		current_weather: Option<CurrentWeather>,
 		#[serde(rename = "reason")]
 		err_reason: Option<String>,
-	//	hourly: Hourly,
+		hourly: Option<HourlyForecast>,
 	}
 
-	client.get("https://api.open-meteo.com/v1/forecast")
+	#[derive(Deserialize, Debug)]
+	struct CurrentWeather {
+		time: i64,
+		is_day: u8,
+
+		weathercode: u8,
+		temperature: f32,
+		windspeed: f32,
+		winddirection: f32,
+	}
+
+	#[derive(Deserialize, Debug)]
+	struct HourlyForecast {
+		time: Vec<i64>,
+		is_day: Vec<u8>,
+
+		temperature_2m: Vec<f32>,
+		//relativehumidity_2m: Vec<f32>,
+		apparent_temperature: Vec<f32>,
+		//surface_pressure: Vec<f32>,
+		//dewpoint_2m: Vec<f32>,
+		precipitation: Vec<f32>,
+		precipitation_probability: Vec<u8>,
+		weathercode: Vec<u8>,
+		winddirection_10m: Vec<f32>,
+		windspeed_10m: Vec<f32>,
+	}
+
+	let res = client.get("https://api.open-meteo.com/v1/forecast")
 		.query(&[
-			//("latitude", "49.0024"),
 			("latitude", loc.latitude),
-			//("longitude", "12.09788"),
 			("longitude", loc.longitude),			
 		])
 		.query(&[
-			//("hourly", "temperature_2m,apparent_temperature,weathercode,windspeed_10m"),
+			("hourly", "is_day,temperature_2m,apparent_temperature,precipitation,precipitation_probability,weathercode,windspeed_10m,winddirection_10m"),
 			("current_weather", "true"),
 			("timeformat", "unixtime"),
-			//("past_days", "1"),
-			//("forecast_days", "3"),
-			//("timezone", "Europe/Berlin"),
+			("forecast_days", "2"),
 		])
 		.send().await?
 		.json::<Response>().await
-		.context("failed to fetch weather data")
-		.and_then(|res| {
-			if let Some(err) = res.err_reason {
-				anyhow::bail!("{err}");
-			}
-			if let Some(wtr) = res.current_weather {
-				Ok(wtr)
-			} else {
-				anyhow::bail!("missing current_weather and now error")
-			}
+		.context("failed to load weather data")?;
+
+	if let Some(err) = res.err_reason {
+		anyhow::bail!("{err}");
+	}
+
+	let Some((cwtr, fct)) = res.current_weather.zip(res.hourly) else {
+		anyhow::bail!("missing data and now error");
+	};
+
+	let now = Utc::now();
+	let itr = izip!(
+			fct.time,
+			fct.is_day,
+			fct.temperature_2m,
+			fct.apparent_temperature,
+			fct.weathercode,
+			fct.precipitation,
+			fct.precipitation_probability,
+			fct.windspeed_10m,
+			fct.winddirection_10m,
+		)
+		.filter_map(|(t, day, _t2m, ta, wc, p, pp, ws, wd)| {
+			let time = NaiveDateTime::from_timestamp_opt(t, 0)
+				.and_then(|time| time.and_local_timezone(Utc).latest())
+				.map(|utc| utc.with_timezone(&Local))?;
+
+			let wf = WeatherForecast {
+				time,
+				is_day: day != 0,
+				temperature: ta,
+				weathercode: wc.try_into().ok()?,
+				precipitation: p,
+				precipitation_probability: pp,
+				windspeed: ws,
+				winddirection: wd,
+			};
+			Some(wf)
 		})
+		.skip_while(|fct| fct.time < now + Duration::minutes(90));
+
+
+	let time = NaiveDateTime::from_timestamp_opt(cwtr.time, 0)
+		.and_then(|time| time.and_local_timezone(Utc).latest())
+		.map(|utc| utc.with_timezone(&Local))
+		.context("failed to convert time")?;
+
+	Ok(WeatherData {
+		current: Weather {
+			time,
+			is_day: cwtr.is_day != 0,
+			weathercode: cwtr.weathercode.try_into()?,
+			temperature: cwtr.temperature,
+			windspeed: cwtr.windspeed,
+			winddirection: cwtr.winddirection,
+		},
+		forecast: itr.collect(),
+	})
 }
 
 

@@ -19,6 +19,8 @@ slint-build = "^1"
 [dependencies]
 # Quality of Life
 anyhow = "^1"
+num_enum = "0.6"
+itertools = "0.11"
 
 # Interface
 clap = { version = "^4", default-features = false, features = ["std", "derive", "help"] }
