@@ -14,7 +14,7 @@ wayland = ["slint/backend-winit-wayland", "slint/renderer-winit-skia-opengl"]
 x11 = ["slint/backend-winit-x11", "slint/renderer-winit-skia-opengl"]
 
 [build-dependencies]
-slint-build = "^1"
+slint-build = "^1.2"
 
 [dependencies]
 # Quality of Life
@@ -24,7 +24,7 @@ itertools = "0.11"
 
 # Interface
 clap = { version = "^4", default-features = false, features = ["std", "derive", "help"] }
-slint = { version = "^1", default-features = false, features = ["std", "compat-1-0"] }
+slint = { version = "^1.2", default-features = false, features = ["std", "compat-1-2"] }
 
 # Data
 image = { version = "^0.24", default-features = false, features = ["jpeg_rayon"] }
