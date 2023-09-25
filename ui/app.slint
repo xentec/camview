@@ -3,7 +3,6 @@ component WeatherPanel inherits VerticalLayout {
 	in property <string> time;
 	in property <image> icon;
 	in property <int> temperature;
-	in property <int> precipitation;
 	in property <int> precipitation-propability;
 
 	in property <brush> background: #000000AA;
@@ -45,49 +44,25 @@ component WeatherPanel inherits VerticalLayout {
 					}
 				}
 				if root.time != "" : HorizontalLayout {
-
+					alignment: space-between;
 					spacing: 5px;
+					padding-left: 5px;
 					Text {
 						text: root.precipitation-propability + " %";
 						color: #FFF;
 						font-size: root.size * 0.4;
 						font-weight: 300;
-
-						horizontal-alignment: center;
-						vertical-alignment: center;
 					}
 					Text {
-						text: root.precipitation + " mm";
+						text: root.time;
 						color: #FFF;
 						font-size: root.size * 0.4;
 						font-weight: 300;
-
-						horizontal-alignment: left;
-						vertical-alignment: center;
 					}
 				}
 			}
 		}
 	}
-
-	if root.time != "" : HorizontalLayout {
-		alignment: end;
-		Rectangle {
-			background: root.background;
-			HorizontalLayout {
-				padding-left: 5px;
-				padding-right: 5px;
-				Text {
-					text: root.time;
-					color: #AAA;
-					font-size: root.size * 0.3;
-					font-weight: 300;
-					horizontal-alignment: right;
-				}
-			}
-		}
-	}
-
 }
 
 
@@ -112,7 +87,6 @@ export component App inherits Window {
 	in property <string> wtr-forecast-time;
 	in property <image> wtr-forecast-icon;
 	in property <int> wtr-forecast-temperature;
-	in property <int> wtr-forecast-precipitation;
 	in property <int> wtr-forecast-precipitation-propability;
 
 	title: "CamView";
@@ -163,7 +137,6 @@ export component App inherits Window {
 							time: root.wtr-forecast-time;
 							icon: wtr-forecast-icon;
 							temperature: wtr-forecast-temperature;
-							precipitation: root.wtr-forecast-precipitation;
 							precipitation-propability: root.wtr-forecast-precipitation-propability;
 
 							size: 32px;

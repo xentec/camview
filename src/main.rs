@@ -310,7 +310,6 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 						ui.set_wtr_forecast_icon(wtr_icon);
 						ui.set_wtr_forecast_temperature(forecast.temperature.round() as i32);
 						ui.set_wtr_forecast_time(forecast.time.time().format("%H:%M").to_string().into());
-						ui.set_wtr_forecast_precipitation(forecast.precipitation as _);
 						ui.set_wtr_forecast_precipitation_propability(forecast.precipitation_probability as _);
 					})
 					.ok();
@@ -606,7 +605,6 @@ struct WeatherForecast {
 	temperature: f32,
 	windspeed: f32,
 	winddirection: f32,
-	precipitation: f32,
 	precipitation_probability: u8,
 }
 
@@ -722,9 +720,6 @@ async fn update_weather(client: &reqwest::Client, loc: &Location) -> Result<Weat
 		temperature_2m: Vec<f32>,
 		//relativehumidity_2m: Vec<f32>,
 		apparent_temperature: Vec<f32>,
-		//surface_pressure: Vec<f32>,
-		//dewpoint_2m: Vec<f32>,
-		precipitation: Vec<f32>,
 		precipitation_probability: Vec<u8>,
 		weathercode: Vec<u8>,
 		winddirection_10m: Vec<f32>,
@@ -733,14 +728,14 @@ async fn update_weather(client: &reqwest::Client, loc: &Location) -> Result<Weat
 
 	let res = client.get("https://api.open-meteo.com/v1/forecast")
 		.query(&[
-			("latitude", loc.latitude),
-			("longitude", loc.longitude),			
-		])
-		.query(&[
-			("hourly", "is_day,temperature_2m,apparent_temperature,precipitation,precipitation_probability,weathercode,windspeed_10m,winddirection_10m"),
+			("hourly", "is_day,temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m,winddirection_10m"),
 			("current_weather", "true"),
 			("timeformat", "unixtime"),
 			("forecast_days", "2"),
+		])
+		.query(&[
+			("latitude", loc.latitude),
+			("longitude", loc.longitude),
 		])
 		.send().await?
 		.json::<Response>().await
@@ -761,12 +756,11 @@ async fn update_weather(client: &reqwest::Client, loc: &Location) -> Result<Weat
 			fct.temperature_2m,
 			fct.apparent_temperature,
 			fct.weathercode,
-			fct.precipitation,
 			fct.precipitation_probability,
 			fct.windspeed_10m,
 			fct.winddirection_10m,
 		)
-		.filter_map(|(t, day, _t2m, ta, wc, p, pp, ws, wd)| {
+		.filter_map(|(t, day, _t2m, ta, wc, pp, ws, wd)| {
 			let time = NaiveDateTime::from_timestamp_opt(t, 0)
 				.and_then(|time| time.and_local_timezone(Utc).latest())
 				.map(|utc| utc.with_timezone(&Local))?;
@@ -776,7 +770,6 @@ async fn update_weather(client: &reqwest::Client, loc: &Location) -> Result<Weat
 				is_day: day != 0,
 				temperature: ta,
 				weathercode: wc.try_into().ok()?,
-				precipitation: p,
 				precipitation_probability: pp,
 				windspeed: ws,
 				winddirection: wd,
