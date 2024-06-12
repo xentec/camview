@@ -14,7 +14,7 @@ wayland = ["slint/backend-winit-wayland", "slint/renderer-winit-skia-opengl"]
 x11 = ["slint/backend-winit-x11", "slint/renderer-winit-skia-opengl"]
 
 [build-dependencies]
-slint-build = "^1.2"
+slint-build = "^1.6"
 
 [dependencies]
 # Quality of Life
@@ -23,22 +23,22 @@ num_enum = "0.6"
 itertools = "0.11"
 
 # Interface
-clap = { version = "^4", default-features = false, features = ["std", "derive", "help"] }
-slint = { version = "^1.2", default-features = false, features = ["std", "compat-1-2"] }
+clap = { version = "~4", default-features = false, features = ["std", "derive", "help"] }
+slint = { version = " ~1.6", default-features = false, features = ["std", "compat-1-2"] }
 
 # Data
-image = { version = "^0.24", default-features = false, features = ["jpeg_rayon"] }
-chrono = { version = "^0.4", features = ["serde", "unstable-locales"] }
-serde = { version = "^1", features = ["derive"] }
-sys-locale = "^0.3"
+image = { version = "~0.25", default-features = false, features = ["jpeg"] }
+chrono = { version = "~0.4", features = ["serde", "unstable-locales"] }
+serde = { version = "~1", features = ["derive"] }
+sys-locale = "~0.3"
 
 # I/O
-futures-util = "^0.3"
-tokio = { version = "^1", features = ["io-util","time"] }
-reqwest = { version = "^0.11", default-features = false, features = ["json","trust-dns","default-tls"] }
+futures-util = "~0.3"
+tokio = { version = "~1", features = ["io-util","time"] }
+reqwest = { version = "~0.11", default-features = false, features = ["json","trust-dns","default-tls"] }
 
 # Logging
-tracing = { version = "^0.1", features = ["log", "release_max_level_debug"] }
+tracing = { version = "~0.1", features = ["log", "release_max_level_debug"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [profile.release]

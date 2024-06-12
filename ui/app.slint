@@ -135,8 +135,8 @@ export component App inherits Window {
 						// Forecast
 						WeatherPanel {
 							time: root.wtr-forecast-time;
-							icon: wtr-forecast-icon;
-							temperature: wtr-forecast-temperature;
+							icon: root.wtr-forecast-icon;
+							temperature: root.wtr-forecast-temperature;
 							precipitation-propability: root.wtr-forecast-precipitation-propability;
 
 							size: 32px;
@@ -144,8 +144,8 @@ export component App inherits Window {
 						}
 						// Current weather
 						WeatherPanel {
-							icon: wtr-icon;
-							temperature: wtr-temperature;
+							icon: root.wtr-icon;
+							temperature: root.wtr-temperature;
 
 							size: 56px;
 						}
