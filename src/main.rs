@@ -565,8 +565,11 @@ async fn update_image(
 		.context("failed to fetch image list")?;
 
 	const IMG_PATH_TS_FMT: &str = "%Y/%m/%d/%H%M_hu.jpg";
-	let img_ts = Local.datetime_from_str(&list.hugeimg, IMG_PATH_TS_FMT)
-		.context("failed to parse date time")?;
+	let img_ts = NaiveDateTime::parse_from_str(&list.hugeimg, IMG_PATH_TS_FMT)
+		.context("failed to parse date time")?
+		.and_local_timezone(Local)
+		.latest()
+		.context("failed to map local timezone")?;
 
 	let url_img = format!("{}/{}", &url_base, list.hugeimg);
 
@@ -765,8 +768,7 @@ async fn update_weather(client: &reqwest::Client, loc: &Location) -> Result<Weat
 			fct.winddirection_10m,
 		)
 		.filter_map(|(t, day, _t2m, ta, wc, pp, ws, wd)| {
-			let time = NaiveDateTime::from_timestamp_opt(t, 0)
-				.and_then(|time| time.and_local_timezone(Utc).latest())
+			let time = DateTime::from_timestamp(t, 0)
 				.map(|utc| utc.with_timezone(&Local))?;
 
 			let wf = WeatherForecast {
@@ -783,8 +785,7 @@ async fn update_weather(client: &reqwest::Client, loc: &Location) -> Result<Weat
 		.skip_while(|fct| fct.time < now + Duration::minutes(90));
 
 
-	let time = NaiveDateTime::from_timestamp_opt(cwtr.time, 0)
-		.and_then(|time| time.and_local_timezone(Utc).latest())
+	let time = DateTime::from_timestamp(cwtr.time, 0)
 		.map(|utc| utc.with_timezone(&Local))
 		.context("failed to convert time")?;
 
