@@ -51,6 +51,10 @@ struct Opt {
 	/// Show current weather for <lat>,<long>
 	#[clap(short = 'w', long)]
 	weather: Option<Location>,
+
+	/// Weather refresh interval in minutes
+	#[clap(long, default_value_t = 15)]
+	weather_refresh: u32,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>>
@@ -261,11 +265,11 @@ async fn io_run(ui: Weak<ui::App>, mut opt: Opt) -> Result<()>
 		spawn({
 			let ui = ui.clone();
 			let client = client.clone();
-			let img_notify = img_notify.clone();
 			let err_tx = err_tx.clone();
 			async move {
+				let mut ival = time::interval(time::Duration::from_secs(opt.weather_refresh as _));
 				loop {
-					img_notify.notified().await;
+					ival.tick().await;
 
 					log::debug!("fetching weather data...");
 					let wd = match update_weather(&client, &location).await {
